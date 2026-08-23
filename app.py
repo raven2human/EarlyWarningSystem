@@ -22,6 +22,57 @@ SEGMENT_NOTES = {
     "seg_5": "✅ zero observed erosion — skip",
 }
 
+# human-readable segment names, taken from the k-prototypes profile table (notebook §7c)
+SEGMENT_NAMES = {
+    "seg_0": "Mainstream frequent users",
+    "seg_1": "Affluent heavy spenders",
+    "seg_2": "Low-engagement mid-age",
+    "seg_3": "Young lifestyle spenders",
+    "seg_4": "Older mainstream (largest group)",
+    "seg_5": "Selective high-value buyers",
+    "seg_6": "Disengaged seniors",
+}
+
+# plain-language names for the model features (used in the why-flagged and what-if pages)
+FEATURE_LABELS = {
+    "spend_log": "Spending level (log)",
+    "spend_cv": "Spending volatility",
+    "spend_trend": "Spending trend",
+    "spend_trend_vs_cohort": "Spending trend vs cohort",
+    "n_tx_avg": "Transactions per month",
+    "n_tx_trend": "Transactions (trend)",
+    "active_days_avg": "Active days per month",
+    "active_days_trend": "Active days (trend)",
+    "n_merchants_avg": "Distinct merchants",
+    "n_merchants_trend": "Distinct merchants (trend)",
+    "n_categories_avg": "Distinct categories",
+    "n_categories_trend": "Distinct categories (trend)",
+    "avg_ticket_avg": "Average purchase size",
+    "weekend_share_avg": "Weekend spending share",
+    "night_share_avg": "Night-time spending share",
+    "geo_spread_lat_avg": "Geographic spread (N–S)",
+    "geo_spread_long_avg": "Geographic spread (E–W)",
+    "disc_share": "Discretionary spending share",
+    "disc_share_trend": "Discretionary share (trend)",
+    "llm_disc_share": "Discretionary share (LLM-graded)",
+    "llm_disc_share_trend": "Discretionary share, LLM (trend)",
+    "income_proxy": "Income proxy (from job title)",
+    "age": "Age",
+}
+
+
+def pretty_feature(name):
+    """readable label for a feature; falls back to a tidied version of the raw name"""
+    if name in FEATURE_LABELS:
+        return FEATURE_LABELS[name]
+    if name.startswith("share_"):
+        return "Category share: " + name[6:].replace("_", " ")
+    if name.startswith("occ_"):
+        return "Occupation: " + name[4:].replace("_", " ")
+    if name.startswith("seg_"):
+        return SEGMENT_NAMES.get(name, name)
+    return name.replace("_", " ").capitalize()
+
 
 @st.cache_data
 def load_data():
@@ -55,6 +106,45 @@ page = st.sidebar.radio("Page", [
 st.sidebar.caption(
     "Master's term project — behavioral early warning for credit-card spend erosion. "
     "All numbers come from cached, temporally held-out evaluation results.")
+
+# short in-app help shown at the top of every page (full guide: DASHBOARD_GUIDE.md in the repo)
+PAGE_HELP = {
+    "Overview": "The project's headline numbers: cohort size, test-era erosion rate, best model "
+        "performance, and the cohort's monthly spend. Note the 2019 spending ramp — it is why "
+        "erosion is measured relative to the cohort median, not in absolute dollars.",
+    "Campaign simulator": "The main decision tool. Choose a snapshot and a label definition, then "
+        "drag the contact-budget slider: precision, recall, and at-risk value covered update live. "
+        "The table below is the actual contact list, downloadable as CSV.",
+    "Cost-benefit": "The campaign in money terms. Enter cost per contact, value saved per retained "
+        "eroder, and offer success rate; the curve shows net benefit at every budget and marks the "
+        "optimum. Change the economics and watch the optimum move.",
+    "Risk map": "Each dot is a customer: color = risk (green→red), size = monthly value; hover for "
+        "details. Note: geography has NO predictive value in this simulated data — this is an "
+        "operational view for campaign planning, not an analytical finding.",
+    "Alerts — risk movers": "Early warning in its purest form: customers whose risk score rose most "
+        "since the previous snapshot, with their full risk trajectories. A rising score is "
+        "actionable before erosion completes.",
+    "Customer drill-down": "One customer under the microscope: spend trajectory (observation window "
+        "highlighted), risk history, and the 'why flagged' panel — each feature's signed "
+        "contribution to the risk score. Red pushes risk up, blue pulls it down.",
+    "What-if simulator": "Change a customer's behavior with the sliders and watch the risk score "
+        "respond, recomputed live from the model's coefficients. Try cutting spend −30% (risk "
+        "rises) or adding a positive spend trend (risk falls).",
+    "Segment explorer": "Seven behavioral segments from k-prototypes clustering (k chosen by "
+        "experiment). Erosion concentrates in two of them, and the model's risk scores agree — "
+        "two affluent segments show zero erosion and need no retention budget.",
+    "Model lab": "The evidence room: the nine-model benchmark (TabPFN leads), the ablation study "
+        "(what each feature family added per model), and the raw-lag time-series baseline "
+        "(feature engineering beats raw history).",
+    "Label explorer": "How the erosion definition was chosen: slide through the five candidate "
+        "thresholds and see the four quality criteria plus the verdict for each. The label was "
+        "engineered by experiment, not picked by taste.",
+    "Drift monitor": "Erosion rate per snapshot, split into train / embargoed / test eras. The "
+        "prevalence drift (8.6% → 2.5%) is explained here — in production this page would drive "
+        "quarterly threshold recalibration.",
+}
+with st.expander("ℹ️ What does this page show?"):
+    st.markdown(PAGE_HELP.get(page, ""))
 
 
 # ---------------------------------------------------------------- Overview
@@ -262,7 +352,8 @@ elif page == "Customer drill-down":
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Risk score", f"{cust['risk']:.2f}")
-    c2.metric("Segment", str(cust["segment"]), SEGMENT_NOTES.get(cust["segment"], "monitor"))
+    c2.metric("Segment", SEGMENT_NAMES.get(cust["segment"], str(cust["segment"])),
+              SEGMENT_NOTES.get(cust["segment"], "monitor"))
     c3.metric("Monthly value", f"${cust['monthly_value']:,.0f}")
     c4.metric("Actually eroded (label)", "yes" if cust["erosion_25"] == 1 else "no")
 
@@ -297,7 +388,8 @@ elif page == "Customer drill-down":
         mean, std = np.array(explain["mean"]), np.array(explain["std"])
         x = row[feats].to_numpy(dtype=float)[0]
         contrib = coef * (x - mean) / np.where(std == 0, 1, std)
-        top = (pd.DataFrame({"feature": feats, "contribution": contrib})
+        top = (pd.DataFrame({"feature": [pretty_feature(f) for f in feats],
+                             "contribution": contrib})
                .reindex(np.abs(contrib).argsort()[::-1][:12]))
         st.altair_chart(
             alt.Chart(top).mark_bar().encode(
@@ -376,7 +468,10 @@ elif page == "Segment explorer":
         "erosion_rate": list(seg["erosion_rate"].values()),
         "mean_model_risk": [round(v, 3) for v in seg["mean_risk"].values()],
     })
+    seg_df["name"] = seg_df["segment"].map(SEGMENT_NAMES).fillna("")
     seg_df["recommendation"] = seg_df["segment"].map(SEGMENT_NOTES).fillna("monitor")
+    seg_df = seg_df[["segment", "name", "customers (test rows)", "erosion_rate",
+                     "mean_model_risk", "recommendation"]]
 
     base_rate = test_scores["erosion_25"].mean()
     chart = alt.Chart(seg_df).mark_bar().encode(
