@@ -3,6 +3,7 @@
 # Nothing is retrained here; the app is a decision console over precomputed results.
 
 import json
+import time
 from pathlib import Path
 
 import altair as alt
@@ -100,8 +101,8 @@ HAS_INTERCEPT = "intercept" in explain
 
 st.sidebar.title("📉 Spend Erosion EWS")
 page = st.sidebar.radio("Page", [
-    "Overview", "Campaign simulator", "Cost-benefit", "Risk map", "Alerts — risk movers",
-    "Customer drill-down", "What-if simulator", "Segment explorer",
+    "Story mode", "Overview", "Campaign simulator", "Cost-benefit", "Risk map",
+    "Alerts — risk movers", "Customer drill-down", "What-if simulator", "Segment explorer",
     "Model lab", "Label explorer", "Drift monitor"])
 st.sidebar.caption(
     "Master's term project — behavioral early warning for credit-card spend erosion. "
@@ -109,6 +110,8 @@ st.sidebar.caption(
 
 # short in-app help shown at the top of every page (full guide: DASHBOARD_GUIDE.md in the repo)
 PAGE_HELP = {
+    "Story mode": "A ten-slide walkthrough of the whole project, from raw transactions to the "
+        "retention plan. Use the buttons to step through, or tick Autoplay to let it run.",
     "Overview": "The project's headline numbers: cohort size, test-era erosion rate, best model "
         "performance, and the cohort's monthly spend. Note the 2019 spending ramp — it is why "
         "erosion is measured relative to the cohort median, not in absolute dollars.",
@@ -147,8 +150,64 @@ with st.expander("ℹ️ What does this page show?"):
     st.markdown(PAGE_HELP.get(page, ""))
 
 
+# -------------------------------------------------------------- Story mode
+if page == "Story mode":
+    st.title("Story mode — the project in ten slides")
+    FIGDIR = Path(__file__).parent / "figures"
+
+    slides = [
+        ("project_pipeline.png", "What we built",
+         "1.3M transactions become a monthly ranking of customers at risk of spending erosion."),
+        ("distributions.png", "The data is noisy",
+         "A typical customer's monthly spend swings ±38%, so single months mean nothing."),
+        ("spend_decomposition.png", "Everyone accelerates",
+         "Transactions per customer rose 42% in 2019 — decline must be measured against the cohort."),
+        ("persistence.png", "The future is predictable",
+         "Past 3-month spend predicts future 3-month spend at r = 0.86."),
+        ("anim_sliding_window.gif", "How we build examples",
+         "A 3+3 month window slides across time; snapshots 7-8 are dropped to avoid overlap."),
+        ("label_quality.png", "The label was tested",
+         "Erosion labels repeat 4.9x more often than chance — a real state, not noise."),
+        ("segment_heatmap.png", "Seven customer segments",
+         "Named groups from k-prototypes, with k chosen by experiment rather than by taste."),
+        ("zoo_curves.png", "Nine models compared",
+         "TabPFN leads; at 2.5% positives the precision-recall view is the honest one."),
+        ("anim_budget_sweep.gif", "Choosing a budget",
+         "As the contact list grows, recall rises and precision falls — pick your operating point."),
+        ("segment_risk_overview.png", "Where to spend the budget",
+         "Two segments carry the risk; two affluent segments need no retention spend at all."),
+    ]
+
+    if "slide" not in st.session_state:
+        st.session_state.slide = 0
+
+    c1, c2, c3, c4 = st.columns([1, 1, 2, 4])
+    if c1.button("← Prev"):
+        st.session_state.slide = (st.session_state.slide - 1) % len(slides)
+    if c2.button("Next →"):
+        st.session_state.slide = (st.session_state.slide + 1) % len(slides)
+    autoplay = c3.checkbox("Autoplay")
+
+    i = st.session_state.slide
+    filename, headline, narration = slides[i]
+    st.subheader(f"{i + 1}. {headline}")
+    st.write(narration)
+
+    image_path = FIGDIR / filename
+    if image_path.exists():
+        st.image(str(image_path), use_container_width=True)
+    else:
+        st.warning(f"Figure not found: {filename} — copy it into the figures/ folder next to app.py.")
+    st.progress((i + 1) / len(slides))
+
+    if autoplay:
+        time.sleep(6)
+        st.session_state.slide = (i + 1) % len(slides)
+        st.rerun()
+
+
 # ---------------------------------------------------------------- Overview
-if page == "Overview":
+elif page == "Overview":
     st.title("Behavioral Early Warning System for Credit Card Spend Erosion")
     st.write(
         "We predict whether a customer's spending will erode **relative to the cohort** in the "
