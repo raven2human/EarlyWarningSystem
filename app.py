@@ -197,11 +197,16 @@ if page == "Story mode":
          "model features.",
          "Seven segments from k-prototypes, with k chosen by an inner-validation experiment. "
          "They range from affluent heavy spenders to disengaged seniors."),
-        ("tabpfn_concept.png", "What is TabPFN?",
-         "Test our proposal's bet that a tabular foundation model suits a small dataset like "
-         "ours better than classical models do.",
-         "TabPFN was pre-trained once on millions of synthetic tables. It does no training on "
-         "our data: our table is passed in as context and prediction is a single forward pass."),
+        ("tabpfn_concept.png", "Why we bet on TabPFN",
+         "Our training set is small and badly imbalanced — 6,356 snapshots across 55 features, "
+         "containing only 548 erosion cases. A model that starts from zero has to learn "
+         "everything about this problem from those 548 examples. We wanted one that did not "
+         "start from zero.",
+         "TabPFN was pre-trained once on millions of synthetic tables, so it arrives already "
+         "knowing how tabular prediction behaves. It does no training on our data at all: our "
+         "table is passed in as context and prediction is a single forward pass. That is exactly "
+         "the advantage you would want at this sample size — and the next slide tests whether we "
+         "actually got it."),
         ("zoo_curves.png", "Nine models compared",
          "Compare nine classifier families fairly — identical features, identical time split, "
          "identical metrics.",
@@ -211,13 +216,15 @@ if page == "Story mode":
          "Check whether TabPFN's lead depends on which features we feed it, or holds "
          "regardless.",
          "TabPFN stays highest in all four feature configurations and varies least. XGBoost "
-         "gets worse as features widen — overfitting with only ~550 positive training cases."),
+         "gets worse as features widen — overfitting with only 548 positive training cases."),
         ("anim_customer_story.gif", "One customer, month by month",
          "Show what 'early warning' actually means for a single real customer, rather than "
          "as an average over the cohort.",
-         "Their spending dips only slightly at first — nothing a human reviewer would notice — "
-         "yet the risk score is already climbing months before the decline becomes obvious. "
-         "That gap between 'barely visible' and 'already flagged' is the whole product."),
+         "This customer starts at risk 0.07 — indistinguishable from a healthy account — and "
+         "climbs to 1.00 by the final snapshot, while the spending decline is still modest. "
+         "That gap between 'barely visible' and 'already flagged' is the whole product. "
+         "(Scores come from the class-balanced logistic model, so they rank customers well "
+         "but are not calibrated probabilities.)"),
         ("anim_budget_sweep.gif", "Choosing a contact budget",
          "Convert a risk score into an operational decision for a team with a limited budget.",
          "At a 5% budget one in five contacted customers truly erodes (8.4x random); at 10% we "
