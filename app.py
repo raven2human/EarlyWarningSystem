@@ -113,7 +113,7 @@ st.sidebar.caption(
 PAGE_HELP = {
     "Story mode": "A fourteen-slide walkthrough of the study, from raw transactions to the "
         "retention policy. Each slide states the objective of that stage and the finding it "
-        "produced. Use Previous/Next to control the pace; animated slides can be stepped "
+        "produced, followed by its implication for the study. Use Previous/Next to control the pace; animated slides can be stepped "
         "through frame by frame with the Playback control.",
     "Overview": "The project's headline numbers: cohort size, test-era erosion rate, best model "
         "performance, and the cohort's monthly spend. Note the 2019 spending ramp — it is why "
@@ -165,81 +165,109 @@ if page == "Story mode":
          "Build a pipeline that turns raw card transactions into a ranked list of customers "
          "whose spending is likely to fall.",
          "Nine stages, from data audit to contact list. Input: 1,296,675 transactions. "
-         "Output: a monthly ranking of 908 customers by erosion risk."),
+         "Output: a monthly ranking of 908 customers by erosion risk.",
+         "The deliverable is an operational contact list, not a score. Every design decision that "
+         "follows is judged by whether it improves that list."),
         ("distributions.png", "Establishing a noise floor",
          "Measure normal month-to-month variation before defining what counts as a decline.",
          "The median customer's monthly spend varies by 38% around their own average. "
          "A one-month rule would therefore flag mostly noise. This is why we use "
-         "three-month windows."),
+         "three-month windows.",
+         "The window length was set by measurement, not convention. A shorter window would have "
+         "trained the model largely on noise."),
         ("spend_decomposition.png", "Explaining cohort growth",
          "Identify the source of the cohort's growth during 2019, since a fixed threshold "
          "would be invalid if all customers were accelerating.",
          "Customer count and average ticket are flat; transactions per customer rose 42%. "
          "Growth is uniform across the cohort. Erosion is therefore measured relative to the "
-         "cohort median, which removes the shared trend."),
+         "cohort median, which removes the shared trend.",
+         "A fixed-dollar threshold would have flagged almost nobody in early 2019 and almost everybody "
+         "in 2020. The cohort-relative definition keeps the label comparable across time."),
         ("persistence.png", "Feasibility check",
          "Test whether past spending carries information about future spending before "
          "investing in features or models.",
          "Month-to-month correlation is 0.75, rising to 0.86 for three-month averages. "
-         "The task is feasible."),
+         "The task is feasible.",
+         "This test justified continuing. Had the correlation been near zero, no amount of feature "
+         "engineering would have rescued the problem."),
         ("anim_sliding_window.gif", "Building training examples",
          "Create enough labelled examples from 908 customers without allowing the outcome "
          "period to influence the observation period.",
          "A three-month observation window and a three-month outcome window slide across "
          "twelve start months, giving 10,896 examples. Snapshots 7 and 8 are removed: their "
-         "outcomes overlap the test outcomes, which would leak information across the split."),
+         "outcomes overlap the test outcomes, which would leak information across the split.",
+         "The embargo costs two of twelve snapshots, roughly 17% of the data. That is the price of "
+         "ensuring every performance figure reported afterwards is trustworthy."),
         ("label_quality.png", "Validating the label",
          "Show that the erosion label captures a lasting decline rather than one weak quarter.",
          "97% of labels are unchanged when using raw instead of capped spending. A flagged "
          "customer is 4.9 times more likely than average to be flagged again next period. "
-         "Prevalence at the chosen threshold is 7.2%."),
+         "Prevalence at the chosen threshold is 7.2%.",
+         "Erosion is a persistent state rather than a one-off event, which is what makes retention "
+         "action worthwhile: the condition lasts long enough to be acted upon."),
         ("anim_tau_sweep.gif", "Choosing the threshold",
          "Select the erosion threshold by stated criteria rather than by preference.",
          "As the threshold tightens, fewer customers are flagged but those flagged repeat "
          "more often. At the extreme this reverses, because very large drops are one-off "
          "shocks. We chose 0.25, where prevalence stays usable and persistence peaks. "
-         "Thresholds of 0.20 and 0.30 are kept for sensitivity testing."),
+         "Thresholds of 0.20 and 0.30 are kept for sensitivity testing.",
+         "Our conclusions are not an artefact of one arbitrary cut-off. Reporting results at three "
+         "thresholds lets the reader verify that the findings hold either side of our choice."),
         ("segment_heatmap.png", "Customer segmentation",
          "Group customers into behavioural segments that can be described in business terms "
          "and used as model features.",
          "Seven segments from k-prototypes clustering, computed on 2019 data only. The number "
          "of segments was chosen by validation performance (+0.055 PR-AUC), not by inspection. "
-         "Segments range from affluent frequent users to disengaged seniors."),
+         "Segments range from affluent frequent users to disengaged seniors.",
+         "Segments give the business a vocabulary for the model's output and allow budget to be "
+         "allocated by group when individual scores are uncertain."),
         ("tabpfn_concept.png", "Why a tabular foundation model",
          "Our training set is small: 6,356 examples, 55 features, and only 548 positive cases. "
          "A model trained from scratch must learn the entire problem from those 548 examples.",
          "TabPFN is pre-trained on millions of synthetic tables and performs no training on our "
          "data; our table is supplied as context and prediction is a single forward pass. The "
-         "next slide tests whether this helps."),
+         "next slide tests whether this helps.",
+         "At this sample size the choice of model matters more than the number of features. This is "
+         "why we compared model families rather than continuing to add variables."),
         ("zoo_curves.png", "Model comparison",
          "Compare nine model families using the same features, the same time split and the "
          "same metrics.",
          "TabPFN leads with PR-AUC 0.218 against a no-skill baseline of 0.025, ahead of "
          "logistic regression (0.173). ROC curves separate the models poorly at 2.5% "
          "prevalence, so precision-recall is the informative view. With about 69 positive test "
-         "cases, differences below 0.03 are within sampling noise."),
+         "cases, differences below 0.03 are within sampling noise.",
+         "Reporting PR-AUC rather than accuracy or ROC-AUC is the honest standard at 2.5% prevalence. "
+         "The noise band also means we present TabPFN as leading, not as proven best."),
         ("tabpfn_stability.png", "Robustness of the result",
          "Check whether TabPFN's lead depends on the feature set supplied to it.",
          "TabPFN ranks first in all four feature configurations and varies least between them. "
          "XGBoost gets worse as features widen, consistent with overfitting at 548 positive "
          "cases. Segments help logistic regression most, supplying structure it cannot "
-         "represent on its own."),
+         "represent on its own.",
+         "The ranking is a property of the models rather than of our feature choices, so the "
+         "recommendation would still hold if the feature set changed."),
         ("anim_customer_story.gif", "Early warning for one customer",
          "Show what the risk score means for a single customer rather than as a cohort average.",
          "This customer starts at risk 0.07, which is indistinguishable from a healthy account, "
          "and reaches 1.00 by the final snapshot while the visible decline is still small. That "
          "interval is where intervention is possible. Scores rank customers reliably but are "
-         "not calibrated probabilities."),
+         "not calibrated probabilities.",
+         "The value of the system is lead time. Operationally, how early a customer is flagged matters "
+         "as much as how often the flag is correct."),
         ("anim_budget_sweep.gif", "Turning risk into a contact policy",
          "Convert the risk ranking into a decision for a team with a fixed contact budget.",
          "At a 5% budget, 21% of contacted customers later erode - 8.4 times the base rate - "
          "capturing 42% of eroders. At 10% the system captures 59% of eroders and 56% of "
-         "at-risk spending. At 20% recall reaches 80% but precision roughly halves."),
+         "at-risk spending. At 20% recall reaches 80% but precision roughly halves.",
+         "The model does not decide how many customers to contact. It converts a budget into an "
+         "expected return, leaving the trade-off with the business."),
         ("segment_risk_overview.png", "Allocating the budget",
          "Identify which segments justify retention spending and which do not.",
          "Erosion concentrates in two low-engagement segments at about 7.0% each against a 2.5% "
          "base rate, and the model independently assigns those segments the highest risk. Two "
-         "affluent segments show no erosion in the test period and need no budget."),
+         "affluent segments show no erosion in the test period and need no budget.",
+         "Two independent methods agreeing raises confidence enough to act. Excluding the zero-erosion "
+         "segments frees budget without reducing the number of eroders reached."),
     ]
 
     if "slide" not in st.session_state:
@@ -254,7 +282,7 @@ if page == "Story mode":
     dwell = c4.slider("Seconds per slide", 4, 30, 12, disabled=not autoplay)
 
     i = st.session_state.slide
-    filename, headline, aim, result = slides[i]
+    filename, headline, aim, result, implication = slides[i]
     st.subheader(f"{i + 1}. {headline}")
 
     image_path = FIGDIR / filename
@@ -283,6 +311,9 @@ if page == "Story mode":
     left.write(aim)
     right.markdown("**Findings**")
     right.write(result)
+
+    st.markdown("**Implication**")
+    st.info(implication)
 
     st.progress((i + 1) / len(slides))
     st.caption(f"Slide {i + 1} of {len(slides)}")
