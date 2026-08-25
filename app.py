@@ -162,114 +162,84 @@ if page == "Story mode":
     # each slide: (image, headline, objective, findings)
     slides = [
         ("project_pipeline.png", "System overview",
-         "Establish an end-to-end pipeline that converts raw card transactions into a ranked "
-         "list of customers whose spending is likely to decline, early enough for a retention "
-         "team to intervene.",
-         "Nine stages: ingestion and quality audit, fraud exclusion, monthly panel construction, "
-         "cohort-relative label engineering, feature construction, segmentation, model "
-         "comparison, and campaign simulation. Input: 1,296,675 transactions. Output: a monthly "
-         "ranking of 908 customers by erosion risk, delivered as a contact list."),
+         "Build a pipeline that turns raw card transactions into a ranked list of customers "
+         "whose spending is likely to fall.",
+         "Nine stages, from data audit to contact list. Input: 1,296,675 transactions. "
+         "Output: a monthly ranking of 908 customers by erosion risk."),
         ("distributions.png", "Establishing a noise floor",
-         "Quantify the natural month-to-month variation in customer spending before defining "
-         "what constitutes a genuine decline. Without this baseline, any threshold would be "
-         "arbitrary.",
-         "The median customer's monthly spend varies by 38% around their own mean "
-         "(coefficient of variation = 0.38). A single-month decline rule would therefore label "
-         "predominantly noise. This measurement is what determined our three-month observation "
-         "and outcome windows."),
-        ("spend_decomposition.png", "Decomposing cohort growth",
-         "Determine the source of the cohort's spending growth during 2019, since an absolute "
-         "decline threshold would be invalid if the entire population were accelerating.",
-         "Active customer count and average transaction value remained flat; transactions per "
-         "customer increased 42%. Growth is uniform across the cohort rather than concentrated. "
-         "Consequently, erosion is defined relative to the contemporaneous cohort median, which "
-         "removes the common trend by construction."),
-        ("persistence.png", "Feasibility assessment",
-         "Before investing in feature engineering or model selection, test whether past spending "
-         "carries any information about future spending in this dataset.",
-         "Month-to-month correlation is r = 0.75, rising to r = 0.86 for three-month averages. "
-         "The increase is consistent with averaging away independent noise, which corroborates "
-         "the noise-floor estimate above. The prediction task is feasible."),
-        ("anim_sliding_window.gif", "Constructing training examples",
-         "Generate a sufficient number of labelled examples from 908 customers while ensuring "
-         "that no information from the outcome period can influence the observation period.",
-         "A three-month observation window paired with a three-month outcome window slides "
-         "across twelve start months, yielding 10,896 customer-snapshot examples. Snapshots 7 "
-         "and 8 are excluded under an embargo rule: their outcome windows overlap those of the "
-         "test snapshots, so retaining them would leak correlated futures across the split."),
+         "Measure normal month-to-month variation before defining what counts as a decline.",
+         "The median customer's monthly spend varies by 38% around their own average. "
+         "A one-month rule would therefore flag mostly noise. This is why we use "
+         "three-month windows."),
+        ("spend_decomposition.png", "Explaining cohort growth",
+         "Identify the source of the cohort's growth during 2019, since a fixed threshold "
+         "would be invalid if all customers were accelerating.",
+         "Customer count and average ticket are flat; transactions per customer rose 42%. "
+         "Growth is uniform across the cohort. Erosion is therefore measured relative to the "
+         "cohort median, which removes the shared trend."),
+        ("persistence.png", "Feasibility check",
+         "Test whether past spending carries information about future spending before "
+         "investing in features or models.",
+         "Month-to-month correlation is 0.75, rising to 0.86 for three-month averages. "
+         "The task is feasible."),
+        ("anim_sliding_window.gif", "Building training examples",
+         "Create enough labelled examples from 908 customers without allowing the outcome "
+         "period to influence the observation period.",
+         "A three-month observation window and a three-month outcome window slide across "
+         "twelve start months, giving 10,896 examples. Snapshots 7 and 8 are removed: their "
+         "outcomes overlap the test outcomes, which would leak information across the split."),
         ("label_quality.png", "Validating the label",
-         "Demonstrate that the erosion label identifies a persistent customer state rather than "
-         "an isolated weak quarter, and that it is not an artifact of our preprocessing.",
-         "97% of labels are unchanged when computed on raw rather than winsorized spending, "
-         "confirming robustness to outlier treatment. A flagged customer is 4.9 times more "
-         "likely than the base rate to be flagged again in the following period, confirming "
-         "persistence. Prevalence at the chosen threshold is 7.2%."),
-        ("anim_tau_sweep.gif", "Threshold selection",
-         "Select the erosion threshold by pre-declared criteria rather than by inspection, and "
-         "document the trade-off that each candidate value implies.",
-         "Sweeping the threshold from 0.10 to 0.45 shows prevalence falling monotonically while "
-         "persistence lift rises, then reverses at the extreme, where flagged cases are one-off "
-         "shocks rather than sustained decline. We selected 0.25, where prevalence remains "
-         "operationally useful (7.2%) and persistence lift is maximised (4.9x). Thresholds of "
-         "0.20 and 0.30 are retained for sensitivity analysis."),
-        ("segment_heatmap.png", "Behavioral segmentation",
-         "Partition customers into interpretable behavioral groups that can be described in "
-         "business terms and supplied to the models as features.",
-         "k-prototypes clustering on mixed numeric and categorical profiles, computed on 2019 "
-         "data only to respect the leakage rule. The number of clusters (k = 7) was selected by "
-         "inner-validation improvement in PR-AUC (+0.055), not by silhouette or visual "
-         "inspection. Segments range from affluent high-frequency users to disengaged seniors."),
-        ("tabpfn_concept.png", "Motivation for a tabular foundation model",
-         "Our training set is small and severely imbalanced: 6,356 snapshots across 55 features "
-         "containing only 548 positive cases — approximately ten events per variable, at the "
-         "lower bound of accepted practice. A model trained from random initialisation must "
-         "infer the entire problem structure from those 548 examples.",
-         "TabPFN is pre-trained once on millions of synthetic tabular datasets and performs no "
-         "gradient updates on our data; our table is supplied as context and inference is a "
-         "single forward pass. This prior knowledge is precisely the advantage sought at this "
-         "sample size. The following slide tests whether that advantage materialises."),
-        ("zoo_curves.png", "Comparative model evaluation",
-         "Compare nine classifier families under identical conditions — the same features, the "
-         "same temporal split, and the same evaluation metrics — so that any difference is "
-         "attributable to the model rather than the protocol.",
-         "TabPFN achieves the highest PR-AUC at 0.218 against a no-skill baseline of 0.025, "
-         "ahead of logistic regression (0.173), KNN (0.161) and CatBoost (0.160). ROC curves "
-         "are tightly clustered and separate the models poorly; at 2.5% prevalence the "
-         "precision-recall view is the informative one. With approximately 69 positive test "
-         "cases, differences below 0.02-0.03 PR-AUC are within sampling noise."),
-        ("tabpfn_stability.png", "Robustness of the model ranking",
-         "Establish whether TabPFN's advantage depends on the particular feature configuration "
-         "supplied to it, or holds across all of them.",
-         "TabPFN ranks first in all four feature configurations (PR-AUC 0.213-0.224) and "
-         "exhibits the smallest spread across them. XGBoost degrades as the feature set widens "
-         "(0.144 to 0.129), consistent with overfitting at 548 positive training cases. "
-         "Segments benefit the linear model most (0.141 to 0.173), as clustering supplies "
-         "non-linear structure that logistic regression cannot represent."),
-        ("anim_customer_story.gif", "Early warning at the individual level",
-         "Illustrate the operational meaning of the risk score for a single customer, rather "
-         "than as an aggregate over the cohort.",
-         "The customer shown begins at risk 0.07 — indistinguishable from a healthy account — "
-         "and reaches 1.00 by the final snapshot while the observable spending decline remains "
-         "modest. The interval between the score becoming actionable and the decline becoming "
-         "visible is the operational value of the system. Note that the risk scores derive from "
-         "the class-balanced logistic model and rank customers reliably, but are not calibrated "
-         "probabilities."),
-        ("anim_budget_sweep.gif", "Translating risk into a contact policy",
-         "Convert a continuous risk ranking into a decision for a retention team operating "
-         "under a fixed contact budget.",
-         "At a 5% budget, 21% of contacted customers subsequently erode — 8.4 times the base "
-         "rate — capturing 42% of all eroders. At 10% the system captures 59% of eroders at 15% "
-         "precision, and 56% of at-risk spending value. At 20% recall reaches 80% while "
-         "precision approximately halves. The budget is therefore a policy choice, not a "
-         "modelling choice."),
-        ("segment_risk_overview.png", "Allocating the retention budget",
-         "Identify which customer segments warrant retention expenditure and which should be "
-         "excluded, using two independent lines of evidence.",
-         "Erosion concentrates in two low-engagement segments at approximately 7.0% each against "
-         "a 2.5% base rate, and the supervised model assigns those same segments the highest "
-         "mean risk — an agreement between unsupervised clustering and supervised learning that "
-         "was not imposed by construction. Two affluent segments exhibit zero erosion in the "
-         "test period and should receive no retention budget."),
+         "Show that the erosion label captures a lasting decline rather than one weak quarter.",
+         "97% of labels are unchanged when using raw instead of capped spending. A flagged "
+         "customer is 4.9 times more likely than average to be flagged again next period. "
+         "Prevalence at the chosen threshold is 7.2%."),
+        ("anim_tau_sweep.gif", "Choosing the threshold",
+         "Select the erosion threshold by stated criteria rather than by preference.",
+         "As the threshold tightens, fewer customers are flagged but those flagged repeat "
+         "more often. At the extreme this reverses, because very large drops are one-off "
+         "shocks. We chose 0.25, where prevalence stays usable and persistence peaks. "
+         "Thresholds of 0.20 and 0.30 are kept for sensitivity testing."),
+        ("segment_heatmap.png", "Customer segmentation",
+         "Group customers into behavioural segments that can be described in business terms "
+         "and used as model features.",
+         "Seven segments from k-prototypes clustering, computed on 2019 data only. The number "
+         "of segments was chosen by validation performance (+0.055 PR-AUC), not by inspection. "
+         "Segments range from affluent frequent users to disengaged seniors."),
+        ("tabpfn_concept.png", "Why a tabular foundation model",
+         "Our training set is small: 6,356 examples, 55 features, and only 548 positive cases. "
+         "A model trained from scratch must learn the entire problem from those 548 examples.",
+         "TabPFN is pre-trained on millions of synthetic tables and performs no training on our "
+         "data; our table is supplied as context and prediction is a single forward pass. The "
+         "next slide tests whether this helps."),
+        ("zoo_curves.png", "Model comparison",
+         "Compare nine model families using the same features, the same time split and the "
+         "same metrics.",
+         "TabPFN leads with PR-AUC 0.218 against a no-skill baseline of 0.025, ahead of "
+         "logistic regression (0.173). ROC curves separate the models poorly at 2.5% "
+         "prevalence, so precision-recall is the informative view. With about 69 positive test "
+         "cases, differences below 0.03 are within sampling noise."),
+        ("tabpfn_stability.png", "Robustness of the result",
+         "Check whether TabPFN's lead depends on the feature set supplied to it.",
+         "TabPFN ranks first in all four feature configurations and varies least between them. "
+         "XGBoost gets worse as features widen, consistent with overfitting at 548 positive "
+         "cases. Segments help logistic regression most, supplying structure it cannot "
+         "represent on its own."),
+        ("anim_customer_story.gif", "Early warning for one customer",
+         "Show what the risk score means for a single customer rather than as a cohort average.",
+         "This customer starts at risk 0.07, which is indistinguishable from a healthy account, "
+         "and reaches 1.00 by the final snapshot while the visible decline is still small. That "
+         "interval is where intervention is possible. Scores rank customers reliably but are "
+         "not calibrated probabilities."),
+        ("anim_budget_sweep.gif", "Turning risk into a contact policy",
+         "Convert the risk ranking into a decision for a team with a fixed contact budget.",
+         "At a 5% budget, 21% of contacted customers later erode - 8.4 times the base rate - "
+         "capturing 42% of eroders. At 10% the system captures 59% of eroders and 56% of "
+         "at-risk spending. At 20% recall reaches 80% but precision roughly halves."),
+        ("segment_risk_overview.png", "Allocating the budget",
+         "Identify which segments justify retention spending and which do not.",
+         "Erosion concentrates in two low-engagement segments at about 7.0% each against a 2.5% "
+         "base rate, and the model independently assigns those segments the highest risk. Two "
+         "affluent segments show no erosion in the test period and need no budget."),
     ]
 
     if "slide" not in st.session_state:
