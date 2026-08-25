@@ -105,14 +105,16 @@ page = st.sidebar.radio("Page", [
     "Alerts — risk movers", "Customer drill-down", "What-if simulator", "Segment explorer",
     "Model lab", "Label explorer", "Drift monitor"])
 st.sidebar.caption(
-    "Master's term project — behavioral early warning for credit-card spend erosion. "
-    "All numbers come from cached, temporally held-out evaluation results.")
+    "Behavioral Early Warning System for Credit Card Spend Erosion. "
+    "All figures derive from cached, temporally held-out evaluation results; "
+    "no model is retrained by this application.")
 
 # short in-app help shown at the top of every page (full guide: DASHBOARD_GUIDE.md in the repo)
 PAGE_HELP = {
-    "Story mode": "A fourteen-slide walkthrough of the whole project, from raw transactions to the "
-        "retention plan. Each slide states what we aimed to do and what we actually found. "
-        "Use the buttons to step through, or tick Autoplay to let it run.",
+    "Story mode": "A fourteen-slide walkthrough of the study, from raw transactions to the "
+        "retention policy. Each slide states the objective of that stage and the finding it "
+        "produced. Use Previous/Next to control the pace; animated slides can be stepped "
+        "through frame by frame with the Playback control.",
     "Overview": "The project's headline numbers: cohort size, test-era erosion rate, best model "
         "performance, and the cohort's monthly spend. Note the 2019 spending ramp — it is why "
         "erosion is measured relative to the cohort median, not in absolute dollars.",
@@ -153,118 +155,170 @@ with st.expander("ℹ️ What does this page show?"):
 
 # -------------------------------------------------------------- Story mode
 if page == "Story mode":
-    st.title("Story mode — the project in fourteen slides")
+    st.title("Study walkthrough")
+    st.caption("Behavioral Early Warning System for Credit Card Spend Erosion \u2014 method and findings in fourteen stages.")
     FIGDIR = Path(__file__).parent / "figures"
 
-    # each slide: (image, headline, what we aimed to do, what we found)
+    # each slide: (image, headline, objective, findings)
     slides = [
-        ("project_pipeline.png", "What we built",
-         "Turn raw card transactions into an early warning of customers whose spending is "
-         "about to fade, while there is still time to act.",
-         "A nine-stage pipeline: 1.3M transactions become a monthly ranking of 908 customers "
-         "by erosion risk, ending in a concrete contact list."),
-        ("distributions.png", "How noisy is normal?",
-         "Measure the natural month-to-month variation before defining what counts as a decline.",
-         "The median customer's monthly spend swings ±38% around their own average, so any "
-         "single-month rule would mostly label noise. This forced 3-month windows."),
-        ("spend_decomposition.png", "What is actually growing?",
-         "Explain why total spending doubles during 2019 before calling anything a decline.",
-         "Active customers and average ticket are flat; transactions per customer rose 42%. "
-         "Because everyone accelerates, erosion had to be measured against the cohort."),
-        ("persistence.png", "Is this predictable at all?",
-         "Run the cheapest possible feasibility test before building features or models.",
-         "Past spending predicts future spending: r = 0.75 month-to-month, rising to 0.86 for "
-         "3-month averages — exactly as the noise arithmetic predicted."),
-        ("anim_sliding_window.gif", "Creating training examples",
-         "Turn 908 customers into enough labelled examples without letting the future leak "
-         "into the past.",
-         "A 3+3 month window slides across 12 start months, giving 10,896 examples. Snapshots "
-         "7-8 are discarded because their outcomes overlap the test outcomes."),
-        ("label_quality.png", "Is the label real?",
-         "Prove the erosion label captures a lasting customer state rather than a random bad "
-         "quarter, and that it survives our preprocessing choices.",
-         "97% of labels are unchanged when using raw instead of capped spending, and a flagged "
-         "customer is 4.9x more likely than average to be flagged again next period."),
-        ("anim_tau_sweep.gif", "Where to draw the line",
-         "Choose the erosion threshold by experiment rather than by taste — sweep every "
-         "candidate cutoff and watch what each one buys us.",
-         "Tightening the threshold flags fewer customers but the ones it keeps repeat more "
-         "often — until the far end, where extreme drops turn out to be one-off shocks rather "
-         "than erosion. We settled at 0.25, where prevalence is still workable (7.2%) and "
-         "persistence lift peaks at 4.9x."),
-        ("segment_heatmap.png", "Who are these customers?",
-         "Group customers into behavioural segments that can be described in words and used as "
-         "model features.",
-         "Seven segments from k-prototypes, with k chosen by an inner-validation experiment. "
-         "They range from affluent heavy spenders to disengaged seniors."),
-        ("tabpfn_concept.png", "Why we bet on TabPFN",
-         "Our training set is small and badly imbalanced — 6,356 snapshots across 55 features, "
-         "containing only 548 erosion cases. A model that starts from zero has to learn "
-         "everything about this problem from those 548 examples. We wanted one that did not "
-         "start from zero.",
-         "TabPFN was pre-trained once on millions of synthetic tables, so it arrives already "
-         "knowing how tabular prediction behaves. It does no training on our data at all: our "
-         "table is passed in as context and prediction is a single forward pass. That is exactly "
-         "the advantage you would want at this sample size — and the next slide tests whether we "
-         "actually got it."),
-        ("zoo_curves.png", "Nine models compared",
-         "Compare nine classifier families fairly — identical features, identical time split, "
-         "identical metrics.",
-         "TabPFN leads with PR-AUC 0.218 against a 0.025 no-skill baseline. The ROC curves "
-         "bunch together; only the precision-recall view separates the models honestly."),
-        ("tabpfn_stability.png", "Why TabPFN won",
-         "Check whether TabPFN's lead depends on which features we feed it, or holds "
-         "regardless.",
-         "TabPFN stays highest in all four feature configurations and varies least. XGBoost "
-         "gets worse as features widen — overfitting with only 548 positive training cases."),
-        ("anim_customer_story.gif", "One customer, month by month",
-         "Show what 'early warning' actually means for a single real customer, rather than "
-         "as an average over the cohort.",
-         "This customer starts at risk 0.07 — indistinguishable from a healthy account — and "
-         "climbs to 1.00 by the final snapshot, while the spending decline is still modest. "
-         "That gap between 'barely visible' and 'already flagged' is the whole product. "
-         "(Scores come from the class-balanced logistic model, so they rank customers well "
-         "but are not calibrated probabilities.)"),
-        ("anim_budget_sweep.gif", "Choosing a contact budget",
-         "Convert a risk score into an operational decision for a team with a limited budget.",
-         "At a 5% budget one in five contacted customers truly erodes (8.4x random); at 10% we "
-         "catch 59% of all eroders; at 20% we catch 80% but precision halves."),
-        ("segment_risk_overview.png", "Where to spend the budget",
-         "Identify which customer groups deserve retention spending and which do not.",
-         "Erosion concentrates in two low-engagement segments (7.0% each), and the model's risk "
-         "scores agree independently. Two affluent segments show zero erosion — skip them."),
+        ("project_pipeline.png", "System overview",
+         "Establish an end-to-end pipeline that converts raw card transactions into a ranked "
+         "list of customers whose spending is likely to decline, early enough for a retention "
+         "team to intervene.",
+         "Nine stages: ingestion and quality audit, fraud exclusion, monthly panel construction, "
+         "cohort-relative label engineering, feature construction, segmentation, model "
+         "comparison, and campaign simulation. Input: 1,296,675 transactions. Output: a monthly "
+         "ranking of 908 customers by erosion risk, delivered as a contact list."),
+        ("distributions.png", "Establishing a noise floor",
+         "Quantify the natural month-to-month variation in customer spending before defining "
+         "what constitutes a genuine decline. Without this baseline, any threshold would be "
+         "arbitrary.",
+         "The median customer's monthly spend varies by 38% around their own mean "
+         "(coefficient of variation = 0.38). A single-month decline rule would therefore label "
+         "predominantly noise. This measurement is what determined our three-month observation "
+         "and outcome windows."),
+        ("spend_decomposition.png", "Decomposing cohort growth",
+         "Determine the source of the cohort's spending growth during 2019, since an absolute "
+         "decline threshold would be invalid if the entire population were accelerating.",
+         "Active customer count and average transaction value remained flat; transactions per "
+         "customer increased 42%. Growth is uniform across the cohort rather than concentrated. "
+         "Consequently, erosion is defined relative to the contemporaneous cohort median, which "
+         "removes the common trend by construction."),
+        ("persistence.png", "Feasibility assessment",
+         "Before investing in feature engineering or model selection, test whether past spending "
+         "carries any information about future spending in this dataset.",
+         "Month-to-month correlation is r = 0.75, rising to r = 0.86 for three-month averages. "
+         "The increase is consistent with averaging away independent noise, which corroborates "
+         "the noise-floor estimate above. The prediction task is feasible."),
+        ("anim_sliding_window.gif", "Constructing training examples",
+         "Generate a sufficient number of labelled examples from 908 customers while ensuring "
+         "that no information from the outcome period can influence the observation period.",
+         "A three-month observation window paired with a three-month outcome window slides "
+         "across twelve start months, yielding 10,896 customer-snapshot examples. Snapshots 7 "
+         "and 8 are excluded under an embargo rule: their outcome windows overlap those of the "
+         "test snapshots, so retaining them would leak correlated futures across the split."),
+        ("label_quality.png", "Validating the label",
+         "Demonstrate that the erosion label identifies a persistent customer state rather than "
+         "an isolated weak quarter, and that it is not an artifact of our preprocessing.",
+         "97% of labels are unchanged when computed on raw rather than winsorized spending, "
+         "confirming robustness to outlier treatment. A flagged customer is 4.9 times more "
+         "likely than the base rate to be flagged again in the following period, confirming "
+         "persistence. Prevalence at the chosen threshold is 7.2%."),
+        ("anim_tau_sweep.gif", "Threshold selection",
+         "Select the erosion threshold by pre-declared criteria rather than by inspection, and "
+         "document the trade-off that each candidate value implies.",
+         "Sweeping the threshold from 0.10 to 0.45 shows prevalence falling monotonically while "
+         "persistence lift rises, then reverses at the extreme, where flagged cases are one-off "
+         "shocks rather than sustained decline. We selected 0.25, where prevalence remains "
+         "operationally useful (7.2%) and persistence lift is maximised (4.9x). Thresholds of "
+         "0.20 and 0.30 are retained for sensitivity analysis."),
+        ("segment_heatmap.png", "Behavioral segmentation",
+         "Partition customers into interpretable behavioral groups that can be described in "
+         "business terms and supplied to the models as features.",
+         "k-prototypes clustering on mixed numeric and categorical profiles, computed on 2019 "
+         "data only to respect the leakage rule. The number of clusters (k = 7) was selected by "
+         "inner-validation improvement in PR-AUC (+0.055), not by silhouette or visual "
+         "inspection. Segments range from affluent high-frequency users to disengaged seniors."),
+        ("tabpfn_concept.png", "Motivation for a tabular foundation model",
+         "Our training set is small and severely imbalanced: 6,356 snapshots across 55 features "
+         "containing only 548 positive cases — approximately ten events per variable, at the "
+         "lower bound of accepted practice. A model trained from random initialisation must "
+         "infer the entire problem structure from those 548 examples.",
+         "TabPFN is pre-trained once on millions of synthetic tabular datasets and performs no "
+         "gradient updates on our data; our table is supplied as context and inference is a "
+         "single forward pass. This prior knowledge is precisely the advantage sought at this "
+         "sample size. The following slide tests whether that advantage materialises."),
+        ("zoo_curves.png", "Comparative model evaluation",
+         "Compare nine classifier families under identical conditions — the same features, the "
+         "same temporal split, and the same evaluation metrics — so that any difference is "
+         "attributable to the model rather than the protocol.",
+         "TabPFN achieves the highest PR-AUC at 0.218 against a no-skill baseline of 0.025, "
+         "ahead of logistic regression (0.173), KNN (0.161) and CatBoost (0.160). ROC curves "
+         "are tightly clustered and separate the models poorly; at 2.5% prevalence the "
+         "precision-recall view is the informative one. With approximately 69 positive test "
+         "cases, differences below 0.02-0.03 PR-AUC are within sampling noise."),
+        ("tabpfn_stability.png", "Robustness of the model ranking",
+         "Establish whether TabPFN's advantage depends on the particular feature configuration "
+         "supplied to it, or holds across all of them.",
+         "TabPFN ranks first in all four feature configurations (PR-AUC 0.213-0.224) and "
+         "exhibits the smallest spread across them. XGBoost degrades as the feature set widens "
+         "(0.144 to 0.129), consistent with overfitting at 548 positive training cases. "
+         "Segments benefit the linear model most (0.141 to 0.173), as clustering supplies "
+         "non-linear structure that logistic regression cannot represent."),
+        ("anim_customer_story.gif", "Early warning at the individual level",
+         "Illustrate the operational meaning of the risk score for a single customer, rather "
+         "than as an aggregate over the cohort.",
+         "The customer shown begins at risk 0.07 — indistinguishable from a healthy account — "
+         "and reaches 1.00 by the final snapshot while the observable spending decline remains "
+         "modest. The interval between the score becoming actionable and the decline becoming "
+         "visible is the operational value of the system. Note that the risk scores derive from "
+         "the class-balanced logistic model and rank customers reliably, but are not calibrated "
+         "probabilities."),
+        ("anim_budget_sweep.gif", "Translating risk into a contact policy",
+         "Convert a continuous risk ranking into a decision for a retention team operating "
+         "under a fixed contact budget.",
+         "At a 5% budget, 21% of contacted customers subsequently erode — 8.4 times the base "
+         "rate — capturing 42% of all eroders. At 10% the system captures 59% of eroders at 15% "
+         "precision, and 56% of at-risk spending value. At 20% recall reaches 80% while "
+         "precision approximately halves. The budget is therefore a policy choice, not a "
+         "modelling choice."),
+        ("segment_risk_overview.png", "Allocating the retention budget",
+         "Identify which customer segments warrant retention expenditure and which should be "
+         "excluded, using two independent lines of evidence.",
+         "Erosion concentrates in two low-engagement segments at approximately 7.0% each against "
+         "a 2.5% base rate, and the supervised model assigns those same segments the highest "
+         "mean risk — an agreement between unsupervised clustering and supervised learning that "
+         "was not imposed by construction. Two affluent segments exhibit zero erosion in the "
+         "test period and should receive no retention budget."),
     ]
 
     if "slide" not in st.session_state:
         st.session_state.slide = 0
 
-    c1, c2, c3, c4 = st.columns([1, 1, 2, 4])
-    if c1.button("← Prev"):
+    c1, c2, c3, c4 = st.columns([1, 1, 2, 3])
+    if c1.button("\u2190 Previous"):
         st.session_state.slide = (st.session_state.slide - 1) % len(slides)
-    if c2.button("Next →"):
+    if c2.button("Next \u2192"):
         st.session_state.slide = (st.session_state.slide + 1) % len(slides)
-    autoplay = c3.checkbox("Autoplay")
+    autoplay = c3.checkbox("Advance automatically")
+    dwell = c4.slider("Seconds per slide", 4, 30, 12, disabled=not autoplay)
 
     i = st.session_state.slide
     filename, headline, aim, result = slides[i]
     st.subheader(f"{i + 1}. {headline}")
 
     image_path = FIGDIR / filename
-    if image_path.exists():
+
+    # animated slides: if a folder of individual frames exists, offer manual stepping,
+    # because an autoplaying GIF cannot be paused or examined frame by frame
+    frame_dir = FIGDIR / "frames" / filename.replace(".gif", "")
+    frames = sorted(frame_dir.glob("*.png")) if frame_dir.is_dir() else []
+
+    if filename.endswith(".gif") and frames:
+        mode = st.radio("Playback", ["Step through manually", "Play animation"],
+                        horizontal=True, key=f"playback_{i}")
+        if mode == "Step through manually":
+            k = st.slider("Frame", 1, len(frames), 1, key=f"frame_{i}")
+            st.image(str(frames[k - 1]), use_container_width=True)
+            st.caption(f"Frame {k} of {len(frames)} \u2014 drag the slider to advance at your own pace.")
+        else:
+            st.image(str(image_path), use_container_width=True)
+    elif image_path.exists():
         st.image(str(image_path), use_container_width=True)
     else:
-        st.warning(f"Figure not found: {filename} — copy it into the figures/ folder next to app.py.")
+        st.warning(f"Figure not found: {filename} \u2014 copy it into the figures/ folder next to app.py.")
 
     left, right = st.columns(2)
-    left.markdown("**What we aimed to do**")
+    left.markdown("**Objective**")
     left.write(aim)
-    right.markdown("**What we found**")
+    right.markdown("**Findings**")
     right.write(result)
 
     st.progress((i + 1) / len(slides))
+    st.caption(f"Slide {i + 1} of {len(slides)}")
 
     if autoplay:
-        time.sleep(6)
+        time.sleep(dwell)
         st.session_state.slide = (i + 1) % len(slides)
         st.rerun()
 
