@@ -251,13 +251,16 @@ if page == "Story mode":
          "us to present TabPFN as the leading model rather than as conclusively the best."),
         ("tabpfn_stability.png", "Robustness of the result",
          "Check whether TabPFN's lead depends on the feature set supplied to it.",
-         "TabPFN ranks first in all four feature configurations and varies least between them. "
-         "XGBoost gets worse as features widen, consistent with overfitting at 548 positive "
-         "cases. Segments help logistic regression most, supplying structure it cannot "
-         "represent on its own.",
+         "TabPFN ranks first in all six feature configurations and varies least between them, "
+         "spanning only 0.209 to 0.224 \u2014 a range narrower than our own sampling-noise band. "
+         "XGBoost is erratic by comparison: it degrades as features widen (overfitting at 548 "
+         "positive cases) yet peaks on the urbanicity set alone. Segments benefit logistic "
+         "regression most, supplying structure it cannot represent on its own, while urbanicity "
+         "helps only XGBoost and harms the other two \u2014 which is why it was rejected.",
          "The observed ranking is a property of the models themselves rather than of our particular "
-         "feature configuration. The recommendation would therefore remain valid under a different "
-         "specification of the feature set."),
+         "feature configuration, so the recommendation would remain valid under a different "
+         "specification. TabPFN's indifference to the feature set is also why we do not choose that "
+         "set by its single highest cell: those differences are not distinguishable from noise."),
         ("anim_customer_story.gif", "Early warning for one customer",
          "Show what the risk score means for a single customer rather than as a cohort average.",
          "This customer starts at risk 0.07, which is indistinguishable from a healthy account, "
