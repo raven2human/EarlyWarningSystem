@@ -24,13 +24,15 @@ SEGMENT_NOTES = {
 }
 
 # human-readable segment names, taken from the k-prototypes profile table (notebook §7c)
+# NOTE: cluster IDs are assignment order, not identity — k-prototypes numbers clusters by
+# initialisation. These names are re-derived from the segment profile table after every run.
 SEGMENT_NAMES = {
     "seg_0": "Mainstream frequent users",
-    "seg_1": "Affluent heavy spenders",
+    "seg_1": "Young lifestyle spenders",
     "seg_2": "Low-engagement mid-age",
-    "seg_3": "Young lifestyle spenders",
+    "seg_3": "Selective high-value buyers",
     "seg_4": "Older mainstream (largest group)",
-    "seg_5": "Selective high-value buyers",
+    "seg_5": "Affluent heavy spenders",
     "seg_6": "Disengaged seniors",
 }
 
@@ -137,8 +139,9 @@ PAGE_HELP = {
         "respond, recomputed live from the model's coefficients. Try cutting spend −30% (risk "
         "rises) or adding a positive spend trend (risk falls).",
     "Segment explorer": "Seven behavioral segments from k-prototypes clustering (k chosen by "
-        "experiment). Erosion concentrates in two of them, and the model's risk scores agree — "
-        "two affluent segments show zero erosion and need no retention budget.",
+        "experiment). Erosion concentrates in two low-engagement segments, and the model's risk "
+        "scores agree — the young lifestyle and affluent heavy-spending segments show zero "
+        "observed erosion and need no retention budget.",
     "Model lab": "The evidence room: the nine-model benchmark (TabPFN leads), the ablation study "
         "(what each feature family added per model), and the raw-lag time-series baseline "
         "(feature engineering beats raw history).",
@@ -226,7 +229,7 @@ if page == "Story mode":
          "and used as model features.",
          "Seven segments from k-prototypes clustering, computed on 2019 data only. The number "
          "of segments was chosen by validation performance (+0.055 PR-AUC), not by inspection. "
-         "Segments range from affluent frequent users to disengaged seniors.",
+         "Segments range from young lifestyle spenders to affluent heavy users to disengaged seniors.",
          "Segmentation provides the business with an interpretable vocabulary for the model's output, "
          "and permits budget to be allocated at group level in cases where confidence in an individual "
          "score is insufficient."),
@@ -281,8 +284,9 @@ if page == "Story mode":
         ("segment_risk_overview.png", "Allocating the budget",
          "Identify which segments justify retention spending and which do not.",
          "Erosion concentrates in two low-engagement segments at about 7.0% each against a 2.5% "
-         "base rate, and the model independently assigns those segments the highest risk. Two "
-         "affluent segments show no erosion in the test period and need no budget.",
+         "base rate, and the model independently assigns those segments the highest risk. The "
+         "young lifestyle segment and the affluent heavy-spending segment show no observed "
+         "erosion in the test period and need no budget.",
          "Agreement between an unsupervised and a supervised method, arrived at independently, "
          "provides sufficient confidence to act. Excluding the two segments exhibiting no erosion "
          "releases budget without reducing the number of at-risk customers reached."),
