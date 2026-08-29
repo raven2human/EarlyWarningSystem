@@ -255,7 +255,7 @@ if page == "Story mode":
         ("tabpfn_stability.png", "Robustness of the result",
          "Check whether TabPFN's lead depends on the feature set supplied to it.",
          "TabPFN ranks first in all six feature configurations and varies least between them, "
-         "spanning only 0.208 to 0.224 \u2014 a range narrower than our own sampling-noise band. "
+         "spanning only 0.209 to 0.224 \u2014 a range narrower than our own sampling-noise band. "
          "XGBoost is erratic by comparison: it degrades as features widen (overfitting at 548 "
          "positive cases) yet peaks on the urbanicity set alone. Segments benefit logistic "
          "regression most, supplying structure it cannot represent on its own, while urbanicity "
