@@ -142,7 +142,7 @@ PAGE_HELP = {
         "experiment). Erosion concentrates in two low-engagement segments, and the model's risk "
         "scores agree — the young lifestyle and affluent heavy-spending segments show zero "
         "observed erosion and need no retention budget.",
-    "Model lab": "The evidence room: the nine-model benchmark (TabPFN leads), the ablation study "
+    "Model lab": "The evidence room: the eight-model benchmark (TabPFN leads), the ablation study "
         "(what each feature family added per model), and the raw-lag time-series baseline "
         "(feature engineering beats raw history).",
     "Label explorer": "How the erosion definition was chosen: slide through the five candidate "
@@ -243,7 +243,7 @@ if page == "Story mode":
          "of features does. This is the reason we conducted a comparative evaluation across model "
          "families rather than continuing to expand the feature set."),
         ("zoo_curves.png", "Model comparison",
-         "Compare nine model families using the same features, the same time split and the "
+         "Compare eight model families using the same features, the same time split and the "
          "same metrics.",
          "TabPFN leads with PR-AUC 0.218 against a no-skill baseline of 0.025, ahead of "
          "logistic regression (0.173). ROC curves separate the models poorly at 2.5% "
@@ -698,7 +698,7 @@ elif page == "Segment explorer":
 elif page == "Model lab":
     st.title("Model lab")
 
-    st.subheader("Nine-model benchmark (full feature set)")
+    st.subheader("Eight-model benchmark (full feature set)")
     zoo = pd.DataFrame(results["model_zoo"])
     st.altair_chart(
         alt.Chart(zoo).mark_bar().encode(
