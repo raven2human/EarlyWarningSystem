@@ -234,55 +234,182 @@ The interesting quantity is the **marginal** return: 5%→10% buys 12 extra erod
 
 ## 3. The eleven interactive pages
 
-Story mode is the argument. These pages are the evidence and the tools — use them to answer questions, not to present from.
+Story mode is the argument. These pages are the evidence and the tools — use them to *answer* questions, not to present from. Each entry below gives the controls, what is actually computed, how to read the output, what to demonstrate, and the caution to state before you are asked.
 
-### Overview
-**For:** orientation. Cohort size, test-era erosion rate, best-model performance, cohort monthly spend.
-**Point at:** the 2019 spending ramp in the spend chart. It is the visual justification for the cohort-relative label.
+---
 
-### Campaign simulator
-**For:** the main decision tool, and the best page to demo live.
-**Do this:** pick a snapshot, then drag the contact-budget slider and let them watch precision fall while recall rises. The table below is the actual contact list, downloadable as CSV.
-**Say:** "This is the deliverable — an actual list of customers to call, not a metric."
+### 3.1 Overview
+*Orientation. Open here, spend thirty seconds, move on.*
 
-### Cost-benefit
-**For:** the campaign in money terms. Enter cost per contact, value saved per retained eroder, and offer success rate.
-**Do this:** change the economics and watch the optimum budget move. It is the most persuasive page for a business audience.
-**Caution:** the inputs are *your* assumptions, not measured quantities. Say so before someone asks.
+**Controls:** none.
 
-### Risk map
-**For:** operational planning — where the at-risk customers physically are.
-**Caution, and state it unprompted:** geography has **no** predictive value in this simulated data. §5G-2 found no association between city type and erosion, and urbanicity was rejected in the ablation. This page is a logistics view, not a finding.
+**What it shows.** Four headline metrics — behavioural customers (908), test-era erosion rate (2.5%), best model with its PR-AUC and its multiple of the no-skill baseline, and recall at a 10% contact budget. Below them, total cohort spend per month as a bar chart.
 
-### Alerts — risk movers
-**For:** early warning in its purest form: customers whose risk rose most since the previous snapshot.
-**Say:** "A rising score is actionable before the erosion completes. This is the page a retention team would actually open on a Monday morning."
+**How to read it.** The metric that matters is *"PR-AUC 0.218, 8.6× no-skill"*. A bare 0.218 sounds poor; against a 0.025 floor it is not. Always quote the ratio alongside the value.
 
-### Customer drill-down
-**For:** one customer under the microscope — spend trajectory with the observation window highlighted, risk history, and a "why flagged" panel giving each feature's signed contribution.
-**Caution:** the explanation panel uses the **logistic** model, not TabPFN, because TabPFN has no inspectable coefficients. Say this before you are caught: the explanations are directionally informative but come from a different (and slightly weaker) model than the headline result.
+**Point at:** the spend chart. Total spend roughly **doubles across 2019**. That ramp is the visual justification for the cohort-relative label — the single design decision the whole study rests on.
 
-### What-if simulator
-**For:** demonstrating that the model responds sensibly to behaviour, not to noise.
-**Do this:** cut spend by 30% and watch risk rise; add a positive spend trend and watch it fall.
-**Caution:** recomputed live from logistic coefficients — again, not TabPFN.
+**Say:** "Everything in this application is read from cached results. The dashboard cannot produce a number that disagrees with the report."
 
-### Segment explorer
-**For:** the segment profile table and per-segment erosion, in a form you can sort and inspect.
-**Use it to** answer any "which segment is that?" question — and to check the cluster-ID caution from slide 8.
+---
 
-### Model lab
-**For:** the evidence room. The eight-model benchmark, the ablation grid, and the raw-lag time-series baseline.
-**This is where you go** when asked "how do you know your features are doing anything?" The AR-3 baseline uses the *same three months* as our features with no engineering and collapses to 0.040–0.084 against 0.224. That comparison is the answer.
+### 3.2 Campaign simulator
+*The main decision tool, and the best page to demo live.*
 
-### Label explorer
-**For:** how the erosion definition was chosen — five candidate thresholds against four criteria, plus alternative window shapes.
-**This is where you go** when asked "why 0.25?" or "why 3+3?".
+**Controls:** test snapshot (9 / 10 / 11, defaults to 11) · label definition (`erosion_20` / `erosion_25` / `erosion_30`, defaults to 25) · contact budget slider (1–30%, defaults to 10).
 
-### Drift monitor
-**For:** erosion rate per snapshot, split into train / embargoed / test eras.
-**Explains** the prevalence drift from 8.6% in training to 2.5% in test: the simulator's growth ramp calms down in 2020, so fewer customers cross a relative threshold.
-**Say:** "In production this page would drive quarterly threshold recalibration. Drift is not a bug to hide, it is a thing to monitor."
+**What it computes.** Customers are sorted by risk; the top *k* = budget% are "contacted". Precision is the share of contacted customers who actually eroded; recall is the share of all eroders captured; **at-risk value covered** is the monetary version — the eroding customers' monthly value that falls inside the contacted set, divided by the total monthly value of all eroders.
+
+**How to read the decile chart.** Note the axis: **decile 0 is the highest risk**, not the lowest (the code reverses `qcut`'s ordering). The dashed line is the base rate. Only the first two bars should stand clearly above it.
+
+**Demo like this.** Set budget to 5%, then drag slowly to 20%. Precision falls from about 21% to 10% while recall climbs from 42% to 80%. Narrate the trade-off as it happens — it is far more convincing than the table in the report.
+
+**Then scroll down.** The contact list is the actual deliverable: customer ID, risk, segment, monthly value. Download it as CSV in front of them. **Say:** "This is what the project produces — a list of people to call, not a metric."
+
+**The τ selector is a hidden strength.** Switching the label to `erosion_20` or `erosion_30` re-scores everything against a different definition of erosion, live. If challenged on the 0.25 threshold, change it and show that the picture does not collapse.
+
+**Caution to state first.** The `actually_eroded` column exists because we are evaluating on a held-out era where the truth is known. In production that column would be empty — it is shown here to demonstrate the ranking works, not because the system knows the future.
+
+---
+
+### 3.3 Cost–benefit
+*The campaign in money. The most persuasive page for a business audience.*
+
+**Controls:** snapshot · cost per contact ($1–500, default $10) · value saved per retained eroder ($10–20,000, default $500) · offer success rate (0.05–1.0, default 0.30).
+
+**What it computes.** For every budget from 1% to 30%:
+
+```
+net benefit(k) = success rate × value saved × true positives caught − cost per contact × k
+```
+
+The optimum is the budget maximising that expression, marked with a red dot.
+
+**How to read it.** The curve rises while marginal contacts are still precise and falls once the ranking runs out of true eroders. The zero line matters: budgets where the curve dips below it *lose money*.
+
+**Demo like this.** Raise cost per contact to $50 — the optimum moves **left** (contact fewer, more precisely). Raise value saved to $5,000 — it moves **right** (worth casting a wider net). This shows the model doesn't dictate the policy; the economics do.
+
+**Caution to state first.** Three of the four inputs are **assumptions, not measurements**. We never observed the true value of a retained customer or the success rate of an offer. The page shows how the decision *responds* to economics; it does not claim to know them.
+
+---
+
+### 3.4 Risk map
+*Operational logistics, deliberately not an analytical finding.*
+
+**Controls:** snapshot.
+
+**What it shows.** One dot per customer on a US map. Colour runs green→red by **risk percentile** (not raw risk — percentile is used so the palette spreads even when scores cluster). Dot radius scales with monthly value. Hover for customer ID, risk, segment, value and state. Below the map, mean risk by state for the top 15.
+
+**Caution — state this before showing the page, not after.** Geography has **no predictive value** in this simulated data. The §5G-2 tests found no association between city type and erosion (Cramér's V = 0.000, p = 0.75), and urbanicity was measured and rejected in the ablation. The state table *will* show variation between states; that variation is noise. This page exists for campaign logistics — which regional team calls whom — and nothing else.
+
+**If the page errors** with "Location columns missing", `dashboard_data` was built by an old version of `prepare_dashboard_data.ipynb`. Regenerate it.
+
+---
+
+### 3.5 Alerts — risk movers
+*Early warning in its purest form. The page a retention team would actually open on a Monday.*
+
+**Controls:** snapshot.
+
+**What it computes.** `risk_change = risk(t) − risk(t−1)` for every customer, sorted descending. Two metrics: how many customers have rising risk, and the largest single jump. Then the top 20 risers as a table, and their full risk trajectories across all snapshots as overlaid lines.
+
+**How to read the trajectory chart.** You are looking for lines that climb steeply at the right-hand end. A customer sitting at constant high risk is already known; a customer *moving* is new information.
+
+**Say:** "Everything else on this dashboard reports a state. This page reports a change — and a change is what you can act on before erosion completes."
+
+---
+
+### 3.6 Customer drill-down
+*One customer under the microscope. Use this when asked "but why did the model flag that person?"*
+
+**Controls:** snapshot · customer (the 50 highest-risk customers at that snapshot).
+
+**What it shows.** Four metrics at the top: risk score, segment (with its name and a target/skip recommendation), monthly value, and whether the customer actually eroded. Then two charts side by side — the monthly spend trajectory with the **three observation months highlighted in blue** against grey history, and the risk history across snapshots on a fixed 0–1 axis.
+
+**The "why flagged" panel** is the important one. For each feature it computes
+
+```
+contribution = coefficient × (value − mean) / standard deviation
+```
+
+and plots the twelve largest by absolute size. **Red bars push risk up, blue pull it down.** Because the model is linear, these contributions sum exactly to the score's linear term — this is a true decomposition, not an approximation like SHAP.
+
+**Caution to state first.** This panel uses the **logistic model**, not TabPFN, because TabPFN has no inspectable coefficients. The explanations are directionally sound and come from the second-best model (PR-AUC 0.173 against 0.218), but they explain a *different* model from the headline result. That is a real limitation, and volunteering it is much stronger than being caught by it.
+
+**Also note:** only the top 50 by risk are selectable, so you cannot browse a low-risk customer here for contrast.
+
+---
+
+### 3.7 What-if simulator
+*Makes the model's logic tangible. Good for showing it responds to behaviour, not to noise.*
+
+**Controls:** snapshot · customer · six sliders — total spend change (±50%), transaction count (±50%), distinct merchants (±50%), discretionary share (±20 percentage points), spend trend (±0.5), active days (±50%).
+
+**What it computes.** It edits the chosen features and re-evaluates `sigmoid(intercept + Σ coefficient × standardised feature)` live. Spend is handled correctly in log space (`log1p(expm1(x) × (1 + pct))`), and discretionary share is clipped to [0, 1].
+
+**Demo like this.** Cut spend −30%: risk rises. Add a positive spend trend: risk falls. Both are the direction a person would expect, which is the point — the model has learned something sensible, not an artefact.
+
+**Caution to state first.** This is a **partial-derivative view, not a simulation**. Moving "transaction count" leaves the transaction *trend* features untouched, even though in reality the two move together. It answers "what does this coefficient do?", not "what would happen if this customer changed?" And, as with the drill-down, it is the logistic model.
+
+---
+
+### 3.8 Segment explorer
+*The reference table. Use it to settle any "which segment is that?" question.*
+
+**Controls:** none.
+
+**What it shows.** Per segment: row count, observed erosion rate, mean model risk, the human-readable name, and a target/skip recommendation. A bar chart colours any segment above the base rate red. Below, a behavioural profile table — mean log spend, transactions per month, average ticket, discretionary share, night-time share and age for each segment in the test era.
+
+**How to read it.** seg_2 and seg_6 at 7.0% are the hotspots, and the model's mean risk is highest for exactly those two (0.199 and 0.204, against 0.026–0.100 elsewhere). That agreement between an unsupervised method and a supervised one is the page's headline.
+
+**Two cautions, both worth volunteering.**
+1. The count column is **test rows, not customers** — 2,724 rows is 908 customers × 3 snapshots. Divide by three for the customer count (seg_1's 165 rows are 55 customers).
+2. **Cluster IDs are assignment order, not identity.** k-prototypes numbers clusters by initialisation, so seg_3 in one run is not seg_3 in the next. The names are re-derived from the profile table after every run. Never quote a segment number without checking.
+
+**And the honest wrinkle:** seg_3 erodes at 3.2% yet the model scores it 0.090 — below seg_0, which erodes at only 1.1%. The model under-rates seg_3. Say it before you are asked.
+
+---
+
+### 3.9 Model lab
+*The evidence room. This is where you go when asked "how do you know your features do anything?"*
+
+**Controls:** none — three stacked result sets.
+
+**1. Eight-model benchmark.** Horizontal bars of PR-AUC with TabPFN highlighted, then the full table with ROC-AUC, PR-AUC, precision@10% and recall@10%. The caption states the no-skill baseline so nobody reads 0.218 without its reference point.
+
+**2. Ablation study.** The full 18-row grid — three models × six feature configurations — including the `PR_gain_vs_baseline` column. This is where urbanicity's rejection is documented.
+
+**3. Raw-lag baseline.** AR-3 uses the **same three months** as our engineered features with no engineering at all and collapses to 0.040–0.084 against TabPFN's 0.224. That single comparison is the answer to "does feature engineering earn its keep?" AR-6 rescues only the linear model, and on a smaller training set (3,632 rows against 6,356) — say so, because it is the one row that appears to contradict the conclusion.
+
+---
+
+### 3.10 Label explorer
+*Where you go when asked "why 0.25?" or "why a 3+3 window?"*
+
+**Controls:** a τ slider across the five candidate thresholds (0.15 / 0.20 / 0.25 / 0.30 / 0.40).
+
+**What it shows.** Four metrics update as you slide — prevalence, winsorized-versus-raw agreement, Jaccard overlap of the positive sets, and persistence lift — followed by a written verdict for that threshold. Then the full criteria table, and a second table comparing alternative window shapes.
+
+**Demo like this.** Slide to **0.15**: rejected, it sits at the noise floor of three-month averages. Slide to **0.40**: rejected, some snapshots have zero positives and repeat probability collapses — it captures one-off shocks, not disengagement. Slide back to **0.25**: prevalence in the predicted band, robust to winsorization, and flagged customers are about 5× likelier than baseline to be flagged again.
+
+**Say:** "The label was engineered by experiment against four criteria declared in advance, not chosen by taste. And we report results at 0.20 and 0.30 so you can check the conclusions either side of our choice."
+
+**The window-shape table** answers the other half: 2+2 and 3+1 inflate prevalence at every threshold, because less averaging means more noise crossings. 3+3 was retained on that evidence.
+
+---
+
+### 3.11 Drift monitor
+*The production-thinking page. Shows you understand what happens after deployment.*
+
+**Controls:** none.
+
+**What it shows.** Erosion rate per snapshot, coloured by era — blue for train (snapshots 0–6), grey for the embargoed 7–8, red for test (9–11). Two metrics below give train-era prevalence (8.6%) against test-era prevalence (2.5%), with the drift as a delta.
+
+**How to read it.** The drop is real and has a clear cause: the simulator's frequency ramp stabilises in 2020, so fewer customers cross a *relative* threshold. It is not a modelling error and not a bug in the label.
+
+**Why it does not invalidate the results.** Ranking metrics remain valid under prevalence shift — but PR-AUC must always be compared to *its own era's* baseline, which is why every PR-AUC in this project is quoted against 0.025 rather than against the training prevalence.
+
+**Say:** "In production this page would drive quarterly threshold recalibration. Drift is not something to hide; it is something to monitor."
 
 ---
 
